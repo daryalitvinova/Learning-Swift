@@ -49,44 +49,177 @@ typealias PhotoProcessingProgressClosure = (_ completionPercentage: CGFloat) -> 
 typealias BatchPhotoDownloadingCompletionClosure = (_ error: NSError?) -> Void
 
 final class PhotoManager {
-  private init() {}
-  static let shared = PhotoManager()
-
-  private var unsafePhotos: [Photo] = []
-
-  var photos: [Photo] {
-    return unsafePhotos
-  }
-
-  func addPhoto(_ photo: Photo) {
-    unsafePhotos.append(photo)
-    DispatchQueue.main.async { [weak self] in
-      self?.postContentAddedNotification()
-    }
-  }
-
-  func downloadPhotos(withCompletion completion: BatchPhotoDownloadingCompletionClosure?) {
-    var storedError: NSError?
-    for address in [
-      PhotoURLString.overlyAttachedGirlfriend,
-      PhotoURLString.successKid,
-      PhotoURLString.lotsOfFaces
-    ] {
-      guard let url = URL(string: address) else {
-        return
-      }
-      let photo = DownloadPhoto(url: url) { _, error in
-        if let error = error {
-          storedError = error
+    private init() {}
+    static let shared = PhotoManager()
+    
+    private let concurrentPhotoQueue = DispatchQueue(
+        label: "com.litvinova.GooglyPuff.photoQueue", // удобно при дебаге
+        attributes: .concurrent)
+    
+    private var unsafePhotos: [Photo] = []
+    
+    // Геттер для unsafePhotos, читает этот ихменяемый массив. Вызывающий, получает копию массива и это защищает от изменения оригинального массива
+    // Но это не защищает от того, что один поток вызывает addPhoto, а другой в это же врмя получает свойство photos
+    var photos: [Photo] {
+        // Так как нужно вернуть данные из фукнции, асинхронность не подходит. Надо sync.
+        // Но внимание!!! тут может быть дедлок, sync будет ждать пока замыкание из addPhoto завершится, но замыкание не может
+        // ни завершиться, ни даже начаться, потому что ждет пока текущее замыкание sync завершится
+        // см. далее ниже
+        var photosCopy: [Photo] = []
+        
+        concurrentPhotoQueue.sync {
+            photosCopy = self.unsafePhotos
         }
-      }
-      PhotoManager.shared.addPhoto(photo)
+        return photosCopy
     }
-
-    completion?(storedError)
-  }
-
-  private func postContentAddedNotification() {
-    NotificationCenter.default.post(name: PhotoManagerNotification.contentAdded, object: nil)
-  }
+    
+    // Модифицирует изменяемый массив, небезопасно
+    func addPhoto(_ photo: Photo) {
+        // В данном случае нет опасности дедлока, так как не вызывается photos внутри addPhoto
+        // и воообще не заходим в photos из другого кода, который уже выполняется на concurentPhotoQueue
+        // тут был бы дедлок
+//        concurrentPhotoQueue.async(flags: .barrier) {
+//            // Дедлок, потому что внутри барьерного блока sync на той же очереди
+//            let all = self.photos // ← вот тут .sync ждёт саму себя
+//            print(all.count)
+//        }
+        concurrentPhotoQueue.async(flags: .barrier) { [weak self] in
+            guard let self = self else {
+                return
+            }
+            self.unsafePhotos.append(photo)
+            DispatchQueue.main.async { [weak self] in
+                self?.postContentAddedNotification()
+            }
+        }
+    }
+    
+    func downloadPhotos(withCompletion completion: BatchPhotoDownloadingCompletionClosure?) {
+        var storedError: NSError?
+        
+        let downloadGroup = DispatchGroup()
+        
+        /* 1 вариант с блокированием текущего потока (wait)
+        for address in [
+            PhotoURLString.overlyAttachedGirlfriend,
+            PhotoURLString.successKid,
+            PhotoURLString.lotsOfFaces
+        ] {
+            guard let url = URL(string: address) else {
+                return
+            }
+            
+            downloadGroup.enter()
+            let photo = DownloadPhoto(url: url) { _, error in
+                if let error = error {
+                    storedError = error
+                }
+                downloadGroup.leave()
+            }
+            PhotoManager.shared.addPhoto(photo)
+        }
+        
+        downloadGroup.wait() // синхпонный вызов, блокирует текущий поток
+        // Поэтому надо использовать async, чтобы поместить метод в фоновую очередь. Это гарантирует, что мы не заблокируем основной поток
+        DispatchQueue.main.async {
+            completion?(storedError)
+        }*/
+        
+        /* 2 вариант без блокирования, а с notify
+        for address in [
+            PhotoURLString.overlyAttachedGirlfriend,
+            PhotoURLString.successKid,
+            PhotoURLString.lotsOfFaces
+        ] {
+            guard let url = URL(string: address) else {
+                return
+            }
+            downloadGroup.enter()
+            let photo = DownloadPhoto(url: url) { _, error in
+                storedError = error
+                downloadGroup.leave()
+            }
+            PhotoManager.shared.addPhoto(photo)
+            
+            // теперь не нужно делать async так как основной поток не блокируется
+            // notify обеспечивает асинхронное завершение, запускается когда в группе больше нет элементов.
+            // также указываем, что нужно запланировать завершающую работу в основном потоке.
+            downloadGroup.notify(queue: DispatchQueue.main) {
+                completion?(storedError)
+            }
+        }*/
+        
+        /* 3 вариант, можно заменить for loop на DispatchQueue.concurrentPerform(iterations:execute:)
+         почему это тут лишнее читай в своей теории
+        
+        let addresses = [
+            PhotoURLString.overlyAttachedGirlfriend,
+            PhotoURLString.successKid,
+            PhotoURLString.lotsOfFaces
+        ]
+        // говорим GCD использовать очередь с .userInitiated для параллельных вызовов
+        let _ = DispatchQueue.global(qos: .userInitiated)
+        DispatchQueue.concurrentPerform(iterations: addresses.count) { index in
+            let address = addresses[index]
+            guard let url = URL(string: address) else { return }
+            downloadGroup.enter()
+            let photo = DownloadPhoto(url: url) { _, error in
+                storedError = error
+                downloadGroup.leave()
+            }
+            PhotoManager.shared.addPhoto(photo)
+        }
+        
+        downloadGroup.notify(queue: DispatchQueue.main) {
+            completion?(storedError)
+        }*/
+        
+        /* 4 вариант, с DispatchWorkItem*/
+        var addresses = [
+            PhotoURLString.overlyAttachedGirlfriend,
+            PhotoURLString.successKid,
+            PhotoURLString.lotsOfFaces
+        ]
+        addresses += addresses + addresses
+        
+        var blocks: [DispatchWorkItem] = []
+        
+        for index in 0..<addresses.count {
+            downloadGroup.enter()
+            
+            let block = DispatchWorkItem(flags: .inheritQoS) {
+                let address = addresses[index]
+                guard let url = URL(string: address) else {
+                    downloadGroup.leave()
+                    return
+                }
+                let photo = DownloadPhoto(url: url) { _, error in
+                    storedError = error
+                    downloadGroup.leave()
+                }
+                PhotoManager.shared.addPhoto(photo)
+            }
+            blocks.append(block)
+            
+            // для примера используем основную последовательную очередь, так как легче отменить блоки
+            // знаем что вторую половину блоков будем выполнять гарантированно последними
+            DispatchQueue.main.async(execute: block)
+        }
+        
+        for block in blocks[3..<blocks.count] {
+            let cancel = Bool.random()
+            if cancel {
+                block.cancel()
+                downloadGroup.leave()
+            }
+        }
+        
+        downloadGroup.notify(queue: DispatchQueue.main) {
+            completion?(storedError)
+        }
+    }
+    
+    private func postContentAddedNotification() {
+        NotificationCenter.default.post(name: PhotoManagerNotification.contentAdded, object: nil)
+    }
 }

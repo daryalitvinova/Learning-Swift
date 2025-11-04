@@ -36,66 +36,101 @@ import Photos
 private let reuseIdentifier = "photoCell"
 private let backgroundImageOpacity: CGFloat = 0.1
 
+// Будем следить когда приложение войдет в режим отладки (о том как это делается см. в своей теории)
+#if DEBUG
+var signal: DispatchSourceSignal?
+private let setupSignalHandlerFor = { (_ object: AnyObject) in
+    let queue = DispatchQueue.main
+    // какой сигнал мониторим и на какой очереди ()
+    signal = DispatchSource.makeSignalSource(signal: SIGSTOP, queue: queue)
+    
+    signal?.setEventHandler {
+        print("Hi, I am: \(object.description ?? "")")
+    }
+    signal?.resume()
+}
+#endif
+
 final class PhotoCollectionViewController: UICollectionViewController {
-  // MARK: - Lifecycle
-  override func viewDidLoad() {
-    super.viewDidLoad()
-
-    let backgroundImageView = UIImageView(image: UIImage(named: "background"))
-    backgroundImageView.alpha = backgroundImageOpacity
-    backgroundImageView.contentMode = .center
-    collectionView?.backgroundView = backgroundImageView
-
-    NotificationCenter.default.addObserver(
-      self,
-      selector: #selector(contentChangedNotification(_:)),
-      name: PhotoManagerNotification.contentUpdated,
-      object: nil
-    )
-
-    NotificationCenter.default.addObserver(
-      self,
-      selector: #selector(contentChangedNotification(_:)),
-      name: PhotoManagerNotification.contentAdded,
-      object: nil
-    )
-  }
-
-  override func viewDidAppear(_ animated: Bool) {
-    super.viewDidAppear(animated)
-    showOrHideNavPrompt()
-  }
-
-  // MARK: - IBAction Methods
-  @IBAction private func addPhotoAssets(_ sender: Any) {
-    let alert = UIAlertController(title: "Get Photos From:", message: nil, preferredStyle: .actionSheet)
-
-    let cancelAction = UIAlertAction(title: "Cancel", style: .cancel, handler: nil)
-    alert.addAction(cancelAction)
-
-    let libraryAction = UIAlertAction(title: "Photo Library", style: .default) { _ in
-      let viewController = self.storyboard?.instantiateViewController(withIdentifier: "AlbumsStoryboard")
-      if let navigationController = viewController as? UINavigationController,
-        let albumsTableViewController = navigationController.topViewController as? AlbumsTableViewController {
-        albumsTableViewController.assetPickerDelegate = self
-        self.present(navigationController, animated: true, completion: nil)
-      }
+    // MARK: - Lifecycle
+    override func viewDidLoad() {
+        super.viewDidLoad()
+        
+        // запустить приложение, приостановить и возобновить приложение (вниху в панели) и увидим строку, которую писали в хэнлере
+        /*Подумайте об этой ситуации на секунду. Когда вы останавливаете отладчик ни с того ни с сего, вы почти никогда не находитесь на желаемом кадре стека. Теперь вы можете остановить отладчик в любое время и выполнить код в желаемом месте. Это очень полезно, если вы хотите выполнить код в точке вашего приложения, к которой утомительно получить доступ из отладчика
+         Поместите точку останова в оператор print() внутри блока setupSignalHandlerFor, который вы только что добавили.
+         Пауза в отладчике, затем запуск снова. Приложение достигнет точки останова, которую вы добавили. Теперь вы глубоко погружены в свой метод PhotoCollectionViewController. Теперь вы можете получить доступ к экземпляру PhotoCollectionViewController по своему усмотрению. Довольно удобно!*/
+#if DEBUG
+        setupSignalHandlerFor(self)
+#endif
+        
+        let backgroundImageView = UIImageView(image: UIImage(named: "background"))
+        backgroundImageView.alpha = backgroundImageOpacity
+        backgroundImageView.contentMode = .center
+        collectionView?.backgroundView = backgroundImageView
+        
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(contentChangedNotification(_:)),
+            name: PhotoManagerNotification.contentUpdated,
+            object: nil
+        )
+        
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(contentChangedNotification(_:)),
+            name: PhotoManagerNotification.contentAdded,
+            object: nil
+        )
     }
-    alert.addAction(libraryAction)
-
-    let internetAction = UIAlertAction(title: "Le Internet", style: .default) { _ in
-      self.downloadImageAssets()
+    
+    override func viewDidAppear(_ animated: Bool) {
+        super.viewDidAppear(animated)
+        showOrHideNavPrompt()
     }
-    alert.addAction(internetAction)
-
-    present(alert, animated: true, completion: nil)
-  }
+    
+    // MARK: - IBAction Methods
+    @IBAction private func addPhotoAssets(_ sender: Any) {
+        let alert = UIAlertController(title: "Get Photos From:", message: nil, preferredStyle: .actionSheet)
+        
+        let cancelAction = UIAlertAction(title: "Cancel", style: .cancel, handler: nil)
+        alert.addAction(cancelAction)
+        
+        let libraryAction = UIAlertAction(title: "Photo Library", style: .default) { _ in
+            let viewController = self.storyboard?.instantiateViewController(withIdentifier: "AlbumsStoryboard")
+            if let navigationController = viewController as? UINavigationController,
+               let albumsTableViewController = navigationController.topViewController as? AlbumsTableViewController {
+                albumsTableViewController.assetPickerDelegate = self
+                self.present(navigationController, animated: true, completion: nil)
+            }
+        }
+        alert.addAction(libraryAction)
+        
+        let internetAction = UIAlertAction(title: "Le Internet", style: .default) { _ in
+            self.downloadImageAssets()
+        }
+        alert.addAction(internetAction)
+        
+        present(alert, animated: true, completion: nil)
+    }
 }
 
 // MARK: - Private Methods
 private extension PhotoCollectionViewController {
   func showOrHideNavPrompt() {
-    // Implement me!
+      let delayInSeconds = 2.0
+      
+      DispatchQueue.main.asyncAfter(deadline: .now() + delayInSeconds) { [weak self] in
+          guard let self = self else { return }
+          
+          if !PhotoManager.shared.photos.isEmpty {
+              self.navigationItem.prompt = nil
+          } else {
+              self.navigationItem.prompt = "Add photos with faces to Googlyify them!"
+          }
+          
+          self.navigationController?.viewIfLoaded?.setNeedsLayout()
+      }
   }
 
   func downloadImageAssets() {
