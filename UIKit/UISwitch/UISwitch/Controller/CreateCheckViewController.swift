@@ -8,22 +8,24 @@
 import UIKit
 
 class CreateCheckViewController: UIViewController {
+    
+    lazy var checkView: CreateCheckView = {
+        let view = CreateCheckView()
+        
+        return view
+    }()
 
     override func viewDidLoad() {
         super.viewDidLoad()
-
-        // Do any additional setup after loading the view.
+        view.backgroundColor = .systemBackground
+        
+        view.addSubview(checkView)
+        
+        NSLayoutConstraint.activate([
+            checkView.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor),
+            checkView.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 20),
+            checkView.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -20),
+            checkView.bottomAnchor.constraint(equalTo: view.bottomAnchor)
+        ])
     }
-    
-
-    /*
-    // MARK: - Navigation
-
-    // In a storyboard-based application, you will often want to do a little preparation before navigation
-    override func prepare(for segue: UIStoryboardSegue, sender: Any?) {
-        // Get the new view controller using segue.destination.
-        // Pass the selected object to the new view controller.
-    }
-    */
-
 }

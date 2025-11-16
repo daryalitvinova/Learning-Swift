@@ -5,16 +5,20 @@
 //  Created by Дарья Литвинова on 16.10.2025.
 //
 
-import UIKit
+import Foundation
 
-class LocalStorage: UIView {
-
-    /*
-    // Only override draw() if you perform custom drawing.
-    // An empty implementation adversely affects performance during animation.
-    override func draw(_ rect: CGRect) {
-        // Drawing code
+class LocalStorage {
+    
+    static let shared = LocalStorage()
+    
+    private init() {}
+    
+    func save(data: [String: String], key: String) {
+        UserDefaults.standard.set(data, forKey: "userProfile")
     }
-    */
-
+    
+    func load(key: String) -> [String: String]? {
+        guard let data = UserDefaults.standard.dictionary(forKey: "userProfile") as? [String: String] else { return nil }
+        return data
+    }
 }

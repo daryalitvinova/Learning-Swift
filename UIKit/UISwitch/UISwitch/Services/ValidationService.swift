@@ -8,6 +8,8 @@
 import Foundation
 
 class Validator {
+    static let shared = Validator()
+    
     func validate(email: String) -> Bool {
         
     }

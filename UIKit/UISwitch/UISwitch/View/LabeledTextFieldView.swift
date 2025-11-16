@@ -7,12 +7,11 @@
 
 import UIKit
 
-class LabelAndTextFieldView: UIView {
+class LabeledTextFieldView: UIView {
 
     lazy var label: UILabel = {
         let label = UILabel()
-        label.text = "Email"
-        label.textColor = .pink
+        label.textColor = .pinkAccent
         label.font = .systemFont(ofSize: 16, weight: .semibold)
         label.translatesAutoresizingMaskIntoConstraints = false
         
@@ -27,10 +26,15 @@ class LabelAndTextFieldView: UIView {
         return textField
     }()
     
-    override init(frame: CGRect) {
-        super.init(frame: frame)
+    init(labelText: String, textFieldPlaceholder: String? = nil) {
+        super.init(frame: .zero)
         
         setupUI()
+        
+        label.text = labelText
+        if let textFieldPlaceholder = textFieldPlaceholder {
+            textField.placeholder = textFieldPlaceholder
+        }
     }
     
     required init?(coder: NSCoder) {
@@ -39,7 +43,7 @@ class LabelAndTextFieldView: UIView {
 
 }
 
-private extension LabelAndTextFieldView {
+private extension LabeledTextFieldView {
     func setupUI() {
         self.backgroundColor = .systemBackground
         self.translatesAutoresizingMaskIntoConstraints = false
@@ -52,7 +56,7 @@ private extension LabelAndTextFieldView {
             label.topAnchor.constraint(equalTo: self.topAnchor),
             label.leadingAnchor.constraint(equalTo: self.leadingAnchor),
             label.trailingAnchor.constraint(equalTo: self.trailingAnchor),
-            textField.topAnchor.constraint(equalTo: label.bottomAnchor),
+            textField.topAnchor.constraint(equalTo: label.bottomAnchor, constant: 5),
             textField.leadingAnchor.constraint(equalTo: self.leadingAnchor),
             textField.trailingAnchor.constraint(equalTo: self.trailingAnchor),
             textField.bottomAnchor.constraint(equalTo: self.bottomAnchor)
