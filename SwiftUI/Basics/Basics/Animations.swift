@@ -67,6 +67,7 @@ struct Animations: View {
                     height: animateOffset ? 100 : 300)
                 .rotationEffect(Angle(degrees: animateOffset ? 360 : 0))
                 .offset(y: animateOffset ? 300: 0)
+            // без value deprecated потому что анимация применялась ко всем анимируемым изменения внутри view, любой state, который изменялся внутри view, анимировался им. Того слишком частая, хаотичная анимация, с более сложных случаях сложнее работать с ней.
                 .animation(.easeInOut(duration: 1.5), value: animateOffset)
             
             Spacer()
