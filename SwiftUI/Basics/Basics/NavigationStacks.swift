@@ -21,7 +21,7 @@ struct NavigationStacks: View {
             }
             .navigationTitle(Text("All Inboxes"))
             //.navigationBarTitleDisplayMode(.automatic)
-            //toolbar(.hidden)
+            //.toolbar(.hidden)
             .toolbar {
                 ToolbarItem(
                     placement: .topBarLeading,

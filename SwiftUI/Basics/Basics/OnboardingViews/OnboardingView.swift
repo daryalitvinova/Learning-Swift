@@ -198,7 +198,6 @@ extension OnboardingView {
                     .foregroundStyle(.indigo)
             }
             
-            
             Spacer()
             Spacer()
         }
