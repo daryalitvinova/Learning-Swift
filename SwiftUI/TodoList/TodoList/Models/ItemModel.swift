@@ -7,7 +7,10 @@
 
 import Foundation
 
-struct ItemModel: Identifiable {
+// Immutable struct
+// isCompleted константа, значит менять не можем, и в целом надо создавать новый экземпляр, самый оптимальный спобоб менять значения, если есть айди, через вот такую функцию toggleCompletion
+
+struct ItemModel: Identifiable, Codable {
     let id: String
     let title: String
     let isCompleted: Bool
@@ -16,5 +19,9 @@ struct ItemModel: Identifiable {
         self.id = id
         self.title = title
         self.isCompleted = isCompleted
+    }
+    
+    func toggleCompletion() -> Self {
+        return ItemModel(id: id, title: title, isCompleted: !isCompleted)
     }
 }

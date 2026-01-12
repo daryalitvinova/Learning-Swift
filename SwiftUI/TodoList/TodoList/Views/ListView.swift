@@ -9,22 +9,30 @@ import SwiftUI
 
 struct ListView: View {
     
-    @State var items: [ItemModel] = [
-        ItemModel(title: "Дочитать книгу", isCompleted: false),
-        ItemModel(title: "Купить мандарины", isCompleted: true),
-        ItemModel(title: "Приготовить курицу", isCompleted: false)
-    ]
+    @EnvironmentObject var viewModel: ListViewModel
     
     var body: some View {
         NavigationStack {
-            List {
-                ForEach(items) { item in
-                    ListRowView(item: item)
+            ZStack {
+                if viewModel.items.isEmpty {
+                    NoItemsView()
+                        .transition(AnyTransition.opacity.animation(.easeInOut))
+                } else {
+                    List {
+                        ForEach(viewModel.items) { item in
+                            ListRowView(item: item)
+                                .onTapGesture {
+                                    withAnimation(.linear) {
+                                        viewModel.updateItem(item)
+                                    }
+                                }
+                        }
+                        .onDelete(perform: viewModel.deleteItem)
+                        .onMove(perform: viewModel.moveItem)
+                    }
+                    .listStyle(.plain)
                 }
-                .onDelete(perform: deleteItem)
-                .onMove(perform: moveItem)
             }
-            .listStyle(.plain)
             .navigationTitle("Список дел")
             .toolbar() {
                 ToolbarItem(placement: .topBarLeading) {
@@ -38,16 +46,11 @@ struct ListView: View {
             }
         }
     }
-    
-    private func deleteItem(indexSet: IndexSet) {
-        items.remove(atOffsets: indexSet)
-    }
-    
-    private func moveItem(from: IndexSet, to: Int) {
-        items.move(fromOffsets: from, toOffset: to)
-    }
 }
 
 #Preview {
-    ListView()
+    NavigationStack {
+        ListView()
+    }
+    .environmentObject(ListViewModel())
 }

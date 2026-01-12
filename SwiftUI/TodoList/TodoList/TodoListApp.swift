@@ -9,9 +9,15 @@ import SwiftUI
 
 @main
 struct TodoListApp: App {
+    @StateObject var listViewModel = ListViewModel()
+    
     var body: some Scene {
         WindowGroup {
-            ListView()
+            // у NavigationView для ipad нужно было еще сделать .navigaitonViewStyle, иначе вью для отсуствия итемов показывалось только при нажатии боковое меню
+            NavigationStack {
+                ListView()
+            }
+            .environmentObject(listViewModel)
         }
     }
 }
