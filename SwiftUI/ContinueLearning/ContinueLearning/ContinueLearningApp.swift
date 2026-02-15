@@ -16,7 +16,7 @@ struct ContinueLearningApp: App {
     
     var body: some Scene {
         WindowGroup {
-            DowloadingImages()
+            AccessebilityColors()
         }
     }
 }

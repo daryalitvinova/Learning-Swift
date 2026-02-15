@@ -7,14 +7,14 @@
 
 import SwiftUI
 
-struct DowloadingImages: View {
+struct DowloadingImagesView: View {
     @StateObject var viewModel = DownloadingImagesViewModel()
     
     var body: some View {
         NavigationStack {
             List {
                 ForEach(viewModel.dataArray) { photo in
-                    DownloadedPhotoRow(photo: photo)
+                    DownloadedPhotoRowView(photo: photo)
                 }
             }
             .navigationTitle("Downloading photos")
@@ -23,5 +23,5 @@ struct DowloadingImages: View {
 }
 
 #Preview {
-    DowloadingImages()
+    DowloadingImagesView()
 }

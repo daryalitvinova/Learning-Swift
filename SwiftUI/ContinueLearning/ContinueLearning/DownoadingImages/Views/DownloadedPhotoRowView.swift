@@ -6,7 +6,7 @@
 //
 import SwiftUI
 
-struct DownloadedPhotoRow: View {
+struct DownloadedPhotoRowView: View {
     let photo: PhotoModel
     
     var body: some View {
@@ -27,5 +27,5 @@ struct DownloadedPhotoRow: View {
 
 
 #Preview {
-    DownloadedPhotoRow(photo: PhotoModel(id: 1, title: "haha", category: "food", image: "https://fakestoreapi.com/img/81fPKd-2AYL._AC_SL1500_t.png"))
+    DownloadedPhotoRowView(photo: PhotoModel(id: 1, title: "haha", category: "food", image: "https://fakestoreapi.com/img/81fPKd-2AYL._AC_SL1500_t.png"))
 }
